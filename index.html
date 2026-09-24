@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>田家四季歌 - 统编版小学语文精确时间戳伴读绘本</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Serif+SC:wght@600;900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #faf6ed;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        }
+        .font-kuaile {
+            font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
+        }
+        /* 小学统编语文课本正统楷体规范 */
+        .font-textbook {
+            font-family: "Kaiti", "STKaiti", "BiauKai", "楷体", "Noto Serif SC", serif;
+        }
+        /* 拼音独立西文字体排版，杜绝声调错位与字体混淆 */
+        .font-pinyin {
+            font-family: "Segoe UI", -apple-system, "Roboto", "Helvetica Neue", "Arial", sans-serif;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+        }
+        .pinyin-hidden .char-py {
+            display: none !important;
+        }
+        .pinyin-hidden .pinyin-char-box {
+            padding-top: 0.6rem !important;
+            padding-bottom: 0.6rem !important;
+        }
+        /* 课本纸张仿真质感 */
+        .paper-sheet {
+            background-color: #fdfbf7;
+            box-shadow: 0 12px 35px -5px rgba(180, 150, 110, 0.25), 0 0 0 1px rgba(217, 190, 150, 0.35);
+        }
+        
+        /* 词语单元悬浮与点击感 */
+        .karaoke-word {
+            display: inline-flex;
+            align-items: flex-end;
+            padding: 2px 4px;
+            border-radius: 8px;
+            transition: all 0.12s ease-out;
+            cursor: pointer;
+        }
+        .karaoke-word:hover {
+            background-color: rgba(254, 240, 138, 0.45);
+            transform: scale(1.03);
+        }
+
+        /* 毫秒级时间戳激活卡拉OK点亮效果 */
+        .karaoke-active {
+            background: linear-gradient(180deg, rgba(254, 240, 138, 0.4) 0%, rgba(253, 224, 71, 0.95) 100%) !important;
+            transform: scale(1.08) translateY(-2px);
+            box-shadow: 0 4px 14px -1px rgba(234, 179, 8, 0.45);
+            border-radius: 8px;
+        }
+        .karaoke-active .char-py {
+            color: #b45309 !important;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+        }
+        .karaoke-active .char-cn {
+            color: #78350f !important;
+            font-weight: 700 !important;
+            text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9);
+        }
+
+        /* 句子行水彩轻划线 */
+        .sentence-active {
+            background-color: rgba(254, 243, 199, 0.5);
+            border-radius: 12px;
+        }
+
+        #fxCanvas {
+            pointer-events: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen relative overflow-x-hidden flex flex-col">
+
+    <canvas id="fxCanvas"></canvas>
+
+    <!-- 顶部操作栏 -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b-2 border-amber-200 shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-tr from-amber-500 to-orange-400 rounded-xl flex items-center justify-center text-white text-xl shadow-md">
+                    🌾
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-kuaile tracking-wider text-amber-950 flex items-center gap-2">
+                        田家四季歌
+                        <span class="text-[11px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300 font-sans font-bold">精准时间戳伴读</span>
+                    </h1>
+                </div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <!-- 拼音开关 -->
+                <button id="pinyinToggleBtn" onclick="togglePinyin()" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition active:scale-95 shadow-xs">
+                    <i class="fa-solid fa-spell-check text-emerald-600"></i>
+                    <span id="pinyinBtnText">拼音：开启</span>
+                </button>
+
+                <!-- 当前季朗读 -->
+                <button id="readCurrentSeasonBtn" onclick="readActiveSeason()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition active:scale-95 shadow-sm">
+                    <i class="fa-solid fa-volume-high"></i>
+                    <span>朗读本季</span>
+                </button>
+
+                <!-- 四季连读 (整首播放) -->
+                <button id="autoPlayAllBtn" onclick="togglePlayFullPoem()" class="px-3.5 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-1.5 transition active:scale-95 shadow-md shadow-orange-300">
+                    <i id="fullPlayIcon" class="fa-solid fa-play"></i>
+                    <span id="fullPlayText">四季连读</span>
+                </button>
+
+                <!-- 语速控制 -->
+                <div class="flex items-center bg-amber-100/70 rounded-xl px-2 py-1 border border-amber-200 text-xs font-semibold text-amber-800">
+                    <span class="mr-1 hidden sm:inline">语速:</span>
+                    <button onclick="setSpeed(0.8)" id="speedSlow" class="px-1.5 py-0.5 rounded text-amber-700 hover:bg-amber-200">慢</button>
+                    <button onclick="setSpeed(1.0)" id="speedNormal" class="px-1.5 py-0.5 rounded bg-amber-500 text-white shadow-xs font-bold">标准</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 音频导入状态提示条 (已完全适配您提供的时间戳) -->
+    <div class="bg-amber-100/90 border-b border-amber-200 px-4 py-2 z-30 relative shadow-xs">
+        <div class="max-w-4xl mx-auto flex items-center justify-between flex-wrap gap-2 text-xs text-amber-950">
+            <div class="flex items-center gap-2">
+                <span class="text-base">🎙️</span>
+                <span id="audioStatusText" class="font-medium">
+                    时间戳已就绪（共 61 个高精词段，30.27 秒）。点击右侧一键导入您的 MP3 开始测试！
+                </span>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="cursor-pointer px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>导入测试 MP3</span>
+                    <input type="file" id="audioFileInput" accept="audio/*" class="hidden" onchange="handleAudioUpload(event)">
+                </label>
+                <button id="clearAudioBtn" onclick="clearCustomAudio()" class="hidden text-slate-500 hover:text-red-500 text-xs px-2 py-1 underline font-semibold transition">恢复默认配音</button>
+            </div>
+        </div>
+    </div>
+
+    <main class="relative z-10 flex-grow max-w-4xl mx-auto px-3 sm:px-4 py-4 w-full space-y-4">
+
+        <!-- 四季切换标签 -->
+        <section class="grid grid-cols-4 gap-2">
+            <button onclick="switchSeason('spring')" id="tab-spring" class="season-tab p-2.5 sm:p-3 rounded-2xl border-2 transition-all flex items-center justify-center gap-1.5 shadow-xs bg-emerald-50 border-emerald-400 text-emerald-950 font-bold ring-2 ring-emerald-300">
+                <span class="text-base sm:text-lg">🌸</span>
+                <span class="text-xs sm:text-base font-kuaile">春季篇</span>
+            </button>
+            <button onclick="switchSeason('summer')" id="tab-summer" class="season-tab p-2.5 sm:p-3 rounded-2xl border-2 transition-all flex items-center justify-center gap-1.5 shadow-xs bg-white border-slate-200 text-slate-700 font-bold hover:border-amber-300">
+                <span class="text-base sm:text-lg">☀️</span>
+                <span class="text-xs sm:text-base font-kuaile">夏季篇</span>
+            </button>
+            <button onclick="switchSeason('autumn')" id="tab-autumn" class="season-tab p-2.5 sm:p-3 rounded-2xl border-2 transition-all flex items-center justify-center gap-1.5 shadow-xs bg-white border-slate-200 text-slate-700 font-bold hover:border-amber-300">
+                <span class="text-base sm:text-lg">🌾</span>
+                <span class="text-xs sm:text-base font-kuaile">秋季篇</span>
+            </button>
+            <button onclick="switchSeason('winter')" id="tab-winter" class="season-tab p-2.5 sm:p-3 rounded-2xl border-2 transition-all flex items-center justify-center gap-1.5 shadow-xs bg-white border-slate-200 text-slate-700 font-bold hover:border-amber-300">
+                <span class="text-base sm:text-lg">❄️</span>
+                <span class="text-xs sm:text-base font-kuaile">冬季篇</span>
+            </button>
+        </section>
+
+        <!-- 课本主舞台：字画一体插页（双层架构 + 词级时间戳高亮点读） -->
+        <section class="paper-sheet rounded-3xl p-4 sm:p-8 relative overflow-hidden transition-all duration-300 min-h-[500px] flex flex-col justify-between">
+            
+            <!-- 底层：自然水彩背景画卷（靠下排列，不遮挡诗文） -->
+            <div id="textbookBgArtwork" class="absolute inset-0 z-0 pointer-events-none overflow-hidden flex flex-col justify-end"></div>
+
+            <!-- 表层：教材课文内容排版（z-10 保证在最上层，清晰绝不受遮） -->
+            <div class="relative z-10 w-full">
+                <!-- 课本顶部标题头 -->
+                <div class="flex items-center justify-between border-b border-amber-900/10 pb-3 mb-5">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white font-bold flex items-center justify-center text-sm shadow-xs font-serif">4</span>
+                        <h2 class="text-xl sm:text-2xl font-textbook font-black tracking-widest text-slate-900">
+                            田家四季歌
+                        </h2>
+                        <span id="lessonSubTag" class="text-xs text-amber-800 bg-amber-100/90 border border-amber-300/80 px-2 py-0.5 rounded-md font-medium">
+                            【春季里 · 春风吹】
+                        </span>
+                    </div>
+                    <span class="text-xs text-slate-500 font-sans hidden sm:inline flex items-center gap-1">
+                        <i class="fa-regular fa-hand-pointer text-amber-600"></i> 轻点汉字或句子即可精准点读
+                    </span>
+                </div>
+
+                <!-- 诗句排版区（大字楷体 + 规范注音 + 词级点读） -->
+                <div id="textbookPoemStage" class="max-w-2xl mx-auto py-2 space-y-4 sm:space-y-6"></div>
+            </div>
+
+            <!-- 底层操作提示与换图按钮 -->
+            <div class="relative z-10 pt-6 flex items-center justify-between text-xs text-slate-400 font-sans border-t border-amber-900/5 mt-4">
+                <span id="footerDescTag">📖 统编版小学语文课本插页规范排版</span>
+                <label class="cursor-pointer text-amber-700 hover:text-amber-900 font-medium flex items-center gap-1 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200 transition">
+                    <i class="fa-solid fa-image"></i>
+                    <span>替换本季插图</span>
+                    <input type="file" id="bgImgInput" accept="image/*" class="hidden" onchange="handleCustomBgUpload(event)">
+                </label>
+            </div>
+        </section>
+
+        <!-- 重点生字与农事课堂 (生字词卡片同步支持时间戳原声截取) -->
+        <section class="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+            <div class="md:col-span-7 bg-white rounded-2xl p-4 shadow-sm border border-amber-100 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-base font-kuaile text-amber-900 flex items-center gap-2">
+                        <span id="vocabBadgeIcon">🌱</span>
+                        <span id="vocabTitle">重点生字词宝盒</span>
+                    </h3>
+                    <span class="text-[11px] text-slate-400">点击卡片播放原声字音</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2.5" id="seasonVocabCards"></div>
+            </div>
+
+            <div class="md:col-span-5 bg-gradient-to-br from-amber-50 to-orange-50/70 rounded-2xl p-4 shadow-xs border border-amber-200/80 text-amber-950 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xl">🌾</span>
+                        <h3 class="font-kuaile text-base font-bold text-amber-900">时令农事微课堂</h3>
+                    </div>
+                    <div id="seasonKnowledgeContent" class="space-y-2 text-xs text-amber-900/90 leading-relaxed"></div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-amber-200/60 flex items-center justify-between text-[11px] text-amber-800">
+                    <span>💡 农耕时序与节气常识</span>
+                    <span class="font-bold">寓教于乐</span>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="mt-4 bg-amber-950 text-amber-200/70 py-4 text-center text-xs">
+        <p class="font-kuaile text-sm text-amber-100">春生夏长 · 秋收冬藏 · 勤劳最美</p>
+        <p class="mt-0.5">统编版小学语文二年级上册《田家四季歌》精确时间戳互动教学网页</p>
+    </footer>
+
+    <script>
+        // 用户提供的精确时间戳数据库 (共 61 个词，范围 0.07s ~ 30.27s)
+        const rawTimestamps = [
+            { "word": "春季", "start": 0.07, "end": 0.63 },
+            { "word": "里", "start": 0.63, "end": 0.92 },
+            { "word": "春风", "start": 1.15, "end": 1.755 },
+            { "word": "吹", "start": 1.755, "end": 2.09 },
+            { "word": "花开", "start": 2.35, "end": 2.91 },
+            { "word": "草", "start": 2.91, "end": 3.15 },
+            { "word": "长", "start": 3.15, "end": 3.405 },
+            { "word": "蝴蝶", "start": 3.405, "end": 3.87 },
+            { "word": "飞", "start": 3.87, "end": 4.19 },
+            { "word": "麦苗", "start": 4.51, "end": 4.965 },
+            { "word": "儿", "start": 4.965, "end": 5.115 },
+            { "word": "多", "start": 5.115, "end": 5.325 },
+            { "word": "嫩", "start": 5.325, "end": 5.63 },
+            { "word": "桑叶", "start": 5.95, "end": 6.39 },
+            { "word": "儿", "start": 6.39, "end": 6.555 },
+            { "word": "正", "start": 6.555, "end": 6.795 },
+            { "word": "肥", "start": 6.795, "end": 7.13 },
+            { "word": "夏季", "start": 7.51, "end": 8.01 },
+            { "word": "里", "start": 8.01, "end": 8.30 },
+            { "word": "农事", "start": 8.56, "end": 9.105 },
+            { "word": "忙", "start": 9.105, "end": 9.41 },
+            { "word": "采桑", "start": 9.79, "end": 10.335 },
+            { "word": "养蚕", "start": 10.335, "end": 10.875 },
+            { "word": "又", "start": 10.875, "end": 11.115 },
+            { "word": "插秧", "start": 11.115, "end": 11.69 },
+            { "word": "早起", "start": 11.95, "end": 12.555 },
+            { "word": "勤", "start": 12.555, "end": 12.78 },
+            { "word": "耕作", "start": 12.78, "end": 13.37 },
+            { "word": "归来", "start": 13.60, "end": 14.13 },
+            { "word": "带", "start": 14.13, "end": 14.325 }, // 兼容课文"戴"
+            { "word": "月光", "start": 14.325, "end": 14.87 },
+            { "word": "秋季", "start": 15.25, "end": 15.75 },
+            { "word": "里", "start": 15.75, "end": 16.04 },
+            { "word": "稻", "start": 16.30, "end": 16.62 },
+            { "word": "上场", "start": 16.62, "end": 17.24 },
+            { "word": "谷", "start": 17.53, "end": 17.85 },
+            { "word": "像", "start": 17.85, "end": 18.105 },
+            { "word": "黄金", "start": 18.105, "end": 18.645 },
+            { "word": "粒粒", "start": 18.645, "end": 19.065 },
+            { "word": "香", "start": 19.065, "end": 19.40 },
+            { "word": "身体", "start": 19.66, "end": 20.25 },
+            { "word": "虽", "start": 20.25, "end": 20.49 },
+            { "word": "辛苦", "start": 20.49, "end": 21.11 },
+            { "word": "心里", "start": 21.40, "end": 21.90 },
+            { "word": "喜洋洋", "start": 21.90, "end": 22.64 },
+            { "word": "冬季", "start": 22.98, "end": 23.475 },
+            { "word": "里", "start": 23.475, "end": 23.78 },
+            { "word": "雪", "start": 24.01, "end": 24.315 },
+            { "word": "初晴", "start": 24.315, "end": 24.86 },
+            { "word": "新", "start": 25.27, "end": 25.575 },
+            { "word": "制", "start": 25.575, "end": 25.80 },
+            { "word": "棉衣", "start": 25.80, "end": 26.25 },
+            { "word": "暖", "start": 26.25, "end": 26.475 },
+            { "word": "又", "start": 26.475, "end": 26.76 },
+            { "word": "轻", "start": 26.76, "end": 27.11 },
+            { "word": "一年", "start": 27.37, "end": 27.885 },
+            { "word": "农事", "start": 27.885, "end": 28.35 },
+            { "word": "了", "start": 28.35, "end": 28.67 },
+            { "word": "大家", "start": 28.96, "end": 29.505 },
+            { "word": "笑盈盈", "start": 29.505, "end": 30.27 }
+        ];
+
+        // 各季节在音频中的起止时间范围（秒）
+        const seasonRanges = {
+            spring: { start: 0.07, end: 7.20 },
+            summer: { start: 7.51, end: 15.00 },
+            autumn: { start: 15.25, end: 22.75 },
+            winter: { start: 22.98, end: 30.35 }
+        };
+
+        // 四季结构化诗句定义（每个词元 wordUnit 对应一个时间戳索引）
+        const seasonalData = {
+            spring: {
+                id: "spring",
+                name: "春季",
+                subTitle: "春季里 · 春风吹",
+                badge: "🌱",
+                // 诗行细分词元，精准映射到 rawTimestamps
+                lines: [
+                    {
+                        units: [
+                            { text: "春季", py: ["chūn", "jì"], tsIdx: 0 },
+                            { text: "里", py: ["lǐ"], tsIdx: 1 },
+                            { punct: "，" },
+                            { text: "春风", py: ["chūn", "fēng"], tsIdx: 2 },
+                            { text: "吹", py: ["chuī"], tsIdx: 3 },
+                            { punct: "，" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "花开", py: ["huā", "kāi"], tsIdx: 4 },
+                            { text: "草", py: ["cǎo"], tsIdx: 5 },
+                            { text: "长", py: ["zhǎng"], tsIdx: 6 },
+                            { text: "蝴蝶", py: ["hú", "dié"], tsIdx: 7 },
+                            { text: "飞", py: ["fēi"], tsIdx: 8 },
+                            { punct: "。" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "麦苗", py: ["mài", "miáo"], tsIdx: 9 },
+                            { text: "儿", py: ["ér"], tsIdx: 10 },
+                            { text: "多", py: ["duō"], tsIdx: 11 },
+                            { text: "嫩", py: ["nèn"], tsIdx: 12 },
+                            { punct: "，" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "桑叶", py: ["sāng", "yè"], tsIdx: 13 },
+                            { text: "儿", py: ["ér"], tsIdx: 14 },
+                            { text: "正", py: ["zhèng"], tsIdx: 15 },
+                            { text: "肥", py: ["féi"], tsIdx: 16 },
+                            { punct: "。" }
+                        ]
+                    }
+                ],
+                explanation: "微风轻拂，百花盛开，麦苗嫩绿茁壮，桑树长满了肥美的绿叶。",
+                vocabList: [
+                    { word: "蝴蝶", pinyin: "hú dié", icon: "🦋", tsIdx: 7, exp: "花丛中飞舞采蜜的昆虫。" },
+                    { word: "麦苗", pinyin: "mài miáo", icon: "🌱", tsIdx: 9, exp: "小麦长出的嫩绿幼苗。" },
+                    { word: "桑叶", pinyin: "sāng yè", icon: "🍃", tsIdx: 13, exp: "桑树的叶子，是蚕宝宝的美食。" },
+                    { word: "草长", pinyin: "cǎo zhǎng", icon: "🌿", start: 2.91, end: 3.405, exp: "茁壮生长，‘长’读 zhǎng。" }
+                ],
+                trivia: [
+                    { icon: "🌸", title: "春风吹拂", text: "东风送暖，大地苏醒，万物萌发。" },
+                    { icon: "🐛", title: "采桑喂蚕", text: "农家从春天开始照料桑树，采摘嫩叶喂蚕。" }
+                ],
+                bgSvg: `
+                    <svg viewBox="0 0 800 420" preserveAspectRatio="xMidYMax slice" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="sp-sky" x1="0%" y1="0%" x2="0%" y2="1">
+                                <stop offset="0%" stop-color="#e8f5e9" stop-opacity="0.35"/>
+                                <stop offset="50%" stop-color="#fdfbf7" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#e8f5e9" stop-opacity="0.95"/>
+                            </linearGradient>
+                            <linearGradient id="sp-hill" x1="0%" y1="0%" x2="0%" y2="1">
+                                <stop offset="0%" stop-color="#bbf7d0" stop-opacity="0.7"/>
+                                <stop offset="100%" stop-color="#86efac" stop-opacity="0.95"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="800" height="420" fill="url(#sp-sky)" />
+                        <path d="M0,280 Q200,230 420,270 T800,240 L800,420 L0,420 Z" fill="url(#sp-hill)" />
+                        <path d="M0,320 Q240,290 520,330 T800,310 L800,420 L0,420 Z" fill="#4ade80" opacity="0.85" />
+                        <circle cx="700" cy="360" r="45" fill="#fbcfe8" opacity="0.8" />
+                        <circle cx="740" cy="340" r="35" fill="#f472b6" opacity="0.6" />
+                        <circle cx="670" cy="380" r="28" fill="#fda4af" opacity="0.7" />
+                        <path d="M120,360 L120,325 M115,338 L110,330 M125,338 L130,330" stroke="#15803d" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M145,370 L145,330 M140,344 L134,336 M150,344 L156,336" stroke="#15803d" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M175,365 L175,328 M170,342 L164,334 M180,342 L186,334" stroke="#15803d" stroke-width="2.5" stroke-linecap="round"/>
+                        <path d="M520,160 Q526,150 535,158 Q525,166 520,160 Z" fill="#38bdf8" />
+                        <path d="M516,162 Q510,154 505,162 Q512,168 516,162 Z" fill="#f472b6" />
+                    </svg>
+                `
+            },
+            summer: {
+                id: "summer",
+                name: "夏季",
+                subTitle: "夏季里 · 农事忙",
+                badge: "☀️",
+                lines: [
+                    {
+                        units: [
+                            { text: "夏季", py: ["xià", "jì"], tsIdx: 17 },
+                            { text: "里", py: ["lǐ"], tsIdx: 18 },
+                            { punct: "，" },
+                            { text: "农事", py: ["nóng", "shì"], tsIdx: 19 },
+                            { text: "忙", py: ["máng"], tsIdx: 20 },
+                            { punct: "，" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "采桑", py: ["cǎi", "sāng"], tsIdx: 21 },
+                            { text: "养蚕", py: ["yǎng", "cán"], tsIdx: 22 },
+                            { text: "又", py: ["yòu"], tsIdx: 23 },
+                            { text: "插秧", py: ["chā", "yāng"], tsIdx: 24 },
+                            { punct: "。" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "早起", py: ["zǎo", "qǐ"], tsIdx: 25 },
+                            { text: "勤", py: ["qín"], tsIdx: 26 },
+                            { text: "耕作", py: ["gēng", "zuò"], tsIdx: 27 },
+                            { punct: "，" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "归来", py: ["guī", "lái"], tsIdx: 28 },
+                            { text: "戴", py: ["dài"], tsIdx: 29 },
+                            { text: "月光", py: ["yuè", "guāng"], tsIdx: 30 },
+                            { punct: "。" }
+                        ]
+                    }
+                ],
+                explanation: "农家最繁忙的季节。既要采桑喂蚕，又要在水田插秧，早出晚归，披星戴月。",
+                vocabList: [
+                    { word: "农事", pinyin: "nóng shì", icon: "🚜", tsIdx: 19, exp: "农田里的各种农事劳动。" },
+                    { word: "养蚕", pinyin: "yǎng cán", icon: "🐛", tsIdx: 22, exp: "喂养吐丝结茧的蚕宝宝。" },
+                    { word: "插秧", pinyin: "chā yāng", icon: "🌾", tsIdx: 24, exp: "把水稻秧苗移植到水田里。" },
+                    { word: "戴月光", pinyin: "dài yuè guāng", icon: "🌙", start: 14.13, end: 14.87, exp: "形容农民伯伯劳作到深夜披着月光回家。" }
+                ],
+                trivia: [
+                    { icon: "🌾", title: "水田插秧", text: "插秧通常退步进行，保证一排排稻苗整齐笔直。" },
+                    { icon: "🌙", title: "戴月归来", text: "夏季避开正午酷暑，农民伯伯常清晨和傍晚抢抓农时。" }
+                ],
+                bgSvg: `
+                    <svg viewBox="0 0 800 420" preserveAspectRatio="xMidYMax slice" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="su-sky" x1="0%" y1="0%" x2="0%" y2="1">
+                                <stop offset="0%" stop-color="#e0f2fe" stop-opacity="0.35"/>
+                                <stop offset="50%" stop-color="#fdfbf7" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#bae6fd" stop-opacity="0.85"/>
+                            </linearGradient>
+                            <linearGradient id="su-water" x1="0%" y1="0%" x2="0%" y2="1">
+                                <stop offset="0%" stop-color="#7dd3fc" stop-opacity="0.6"/>
+                                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.8"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="800" height="420" fill="url(#su-sky)" />
+                        <path d="M720,40 A22,22 0 0,0 738,72 A17,17 0 0,1 720,40 Z" fill="#fef08a" opacity="0.8" />
+                        <path d="M0,260 Q180,220 380,250 T800,230 L800,420 L0,420 Z" fill="#86efac" opacity="0.6" />
+                        <path d="M0,330 Q220,300 460,335 T800,320 L800,420 L0,420 Z" fill="url(#su-water)" />
+                        <g opacity="0.9">
+                            <path d="M80,365 L80,345 M76,355 L70,348 M84,355 L90,348" stroke="#15803d" stroke-width="2.5" stroke-linecap="round"/>
+                            <path d="M130,370 L130,350 M126,360 L120,353 M134,360 L140,353" stroke="#15803d" stroke-width="2.5" stroke-linecap="round"/>
+                            <path d="M180,365 L180,345 M176,355 L170,348 M184,355 L190,348" stroke="#15803d" stroke-width="2.5" stroke-linecap="round"/>
+                        </g>
+                    </svg>
+                `
+            },
+            autumn: {
+                id: "autumn",
+                name: "秋季",
+                subTitle: "秋季里 · 稻上场",
+                badge: "🌾",
+                lines: [
+                    {
+                        units: [
+                            { text: "秋季", py: ["qiū", "jì"], tsIdx: 31 },
+                            { text: "里", py: ["lǐ"], tsIdx: 32 },
+                            { punct: "，" },
+                            { text: "稻", py: ["dào"], tsIdx: 33 },
+                            { text: "上场", py: ["shang", "cháng"], tsIdx: 34 },
+                            { punct: "，" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "谷", py: ["gǔ"], tsIdx: 35 },
+                            { text: "像", py: ["xiàng"], tsIdx: 36 },
+                            { text: "黄金", py: ["huáng", "jīn"], tsIdx: 37 },
+                            { text: "粒粒", py: ["lì", "lì"], tsIdx: 38 },
+                            { text: "香", py: ["xiāng"], tsIdx: 39 },
+                            { punct: "。" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "身体", py: ["shēn", "tǐ"], tsIdx: 40 },
+                            { text: "虽", py: ["suī"], tsIdx: 41 },
+                            { text: "辛苦", py: ["xīn", "kǔ"], tsIdx: 42 },
+                            { punct: "，" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "心里", py: ["xīn", "lǐ"], tsIdx: 43 },
+                            { text: "喜洋洋", py: ["xǐ", "yáng", "yáng"], tsIdx: 44 },
+                            { punct: "。" }
+                        ]
+                    }
+                ],
+                explanation: "稻谷金黄，颗粒饱满。农人虽然劳作辛苦，但看着丰收成果，心里格外高兴欢喜。",
+                vocabList: [
+                    { word: "稻上场", pinyin: "dào shang cháng", icon: "🧺", start: 16.30, end: 17.24, exp: "收割的稻谷运到打谷场晾晒。" },
+                    { word: "黄金", pinyin: "huáng jīn", icon: "🪙", tsIdx: 37, exp: "比喻成熟金黄的稻谷格外珍贵。" },
+                    { word: "粒粒香", pinyin: "lì lì xiāng", icon: "🌾", start: 18.645, end: 19.40, exp: "形容谷粒饱满散发清香。" },
+                    { word: "喜洋洋", pinyin: "xǐ yáng yáng", icon: "😄", tsIdx: 44, exp: "形容心中十分欢喜快乐的样子。" }
+                ],
+                trivia: [
+                    { icon: "🌾", title: "打谷场", text: "专门平整出来用于脱粒和翻晒稻谷的开阔场地，‘场’读 cháng。" },
+                    { icon: "✨", title: "丰收之喜", text: "一份耕耘，一份收获。劳动的果实最甘甜。" }
+                ],
+                bgSvg: `
+                    <svg viewBox="0 0 800 420" preserveAspectRatio="xMidYMax slice" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="au-sky" x1="0%" y1="0%" x2="0%" y2="1">
+                                <stop offset="0%" stop-color="#ffedd5" stop-opacity="0.35"/>
+                                <stop offset="50%" stop-color="#fdfbf7" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#fef3c7" stop-opacity="0.85"/>
+                            </linearGradient>
+                            <linearGradient id="au-gold" x1="0%" y1="0%" x2="0%" y2="1">
+                                <stop offset="0%" stop-color="#fde047" />
+                                <stop offset="100%" stop-color="#eab308" />
+                            </linearGradient>
+                        </defs>
+                        <rect width="800" height="420" fill="url(#au-sky)" />
+                        <path d="M0,260 Q210,210 430,250 T800,225 L800,420 L0,420 Z" fill="#fdba74" opacity="0.5" />
+                        <path d="M0,320 Q240,290 520,325 T800,310 L800,420 L0,420 Z" fill="#fcd34d" opacity="0.75" />
+                        <path d="M620,420 Q690,300 760,420 Z" fill="url(#au-gold)" />
+                        <path d="M560,420 Q620,330 680,420 Z" fill="#facc15" opacity="0.9" />
+                    </svg>
+                `
+            },
+            winter: {
+                id: "winter",
+                name: "冬季",
+                subTitle: "冬季里 · 雪初晴",
+                badge: "❄️",
+                lines: [
+                    {
+                        units: [
+                            { text: "冬季", py: ["dōng", "jì"], tsIdx: 45 },
+                            { text: "里", py: ["lǐ"], tsIdx: 46 },
+                            { punct: "，" },
+                            { text: "雪", py: ["xuě"], tsIdx: 47 },
+                            { text: "初晴", py: ["chū", "qíng"], tsIdx: 48 },
+                            { punct: "，" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "新", py: ["xīn"], tsIdx: 49 },
+                            { text: "制", py: ["zhì"], tsIdx: 50 },
+                            { text: "棉衣", py: ["mián", "yī"], tsIdx: 51 },
+                            { text: "暖", py: ["nuǎn"], tsIdx: 52 },
+                            { text: "又", py: ["yòu"], tsIdx: 53 },
+                            { text: "轻", py: ["qīng"], tsIdx: 54 },
+                            { punct: "。" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "一年", py: ["yī", "nián"], tsIdx: 55 },
+                            { text: "农事", py: ["nóng", "shì"], tsIdx: 56 },
+                            { text: "了", py: ["liǎo"], tsIdx: 57 },
+                            { punct: "，" }
+                        ]
+                    },
+                    {
+                        units: [
+                            { text: "大家", py: ["dà", "jiā"], tsIdx: 58 },
+                            { text: "笑盈盈", py: ["xiào", "yíng", "yíng"], tsIdx: 59 },
+                            { punct: "。" }
+                        ]
+                    }
+                ],
+                explanation: "大雪初停，冬日暖阳升起。穿上舒适保暖的新棉袄，一年的农活全部忙完，大家欢聚一堂，喜笑颜开。",
+                vocabList: [
+                    { word: "雪初晴", pinyin: "xuě chū qíng", icon: "☀️", start: 24.01, end: 24.86, exp: "下雪后天气刚刚放晴。" },
+                    { word: "新制", pinyin: "xīn zhì", icon: "✂️", start: 25.27, end: 25.80, exp: "新近缝制裁做好的衣裳。" },
+                    { word: "农事了", pinyin: "nóng shì liǎo", icon: "✨", start: 27.885, end: 28.67, exp: "农活做完结束，‘了’读 liǎo。" },
+                    { word: "笑盈盈", pinyin: "xiào yíng yíng", icon: "😄", tsIdx: 59, exp: "满面笑容、喜气洋洋的样子。" }
+                ],
+                trivia: [
+                    { icon: "🔔", title: "多音字提醒", text: "“一年农事了”的‘了’读 liǎo（指结束完毕），不要读成 le 哦！" },
+                    { icon: "🧣", title: "冬闲休整", text: "冬天土地休眠，农民伯伯保养农具，准备迎接来年春天。" }
+                ],
+                bgSvg: `
+                    <svg viewBox="0 0 800 420" preserveAspectRatio="xMidYMax slice" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="wi-sky" x1="0%" y1="0%" x2="0%" y2="1">
+                                <stop offset="0%" stop-color="#dbeafe" stop-opacity="0.4"/>
+                                <stop offset="50%" stop-color="#fdfbf7" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#e2e8f0" stop-opacity="0.8"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="800" height="420" fill="url(#wi-sky)" />
+                        <path d="M0,260 Q190,210 400,250 T800,230 L800,420 L0,420 Z" fill="#cbd5e1" opacity="0.5" />
+                        <path d="M0,320 Q240,285 520,325 T800,310 L800,420 L0,420 Z" fill="#ffffff" opacity="0.9" />
+                        <g transform="translate(680, 310)">
+                            <circle cx="20" cy="55" r="26" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+                            <circle cx="20" cy="20" r="17" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+                            <polygon points="18,19 8,22 18,24" fill="#f97316"/>
+                            <circle cx="15" cy="15" r="1.8" fill="#334155"/>
+                            <circle cx="24" cy="15" r="1.8" fill="#334155"/>
+                            <rect x="8" y="32" width="24" height="6" rx="3" fill="#ef4444"/>
+                            <rect x="22" y="36" width="6" height="15" rx="2" fill="#ef4444"/>
+                        </g>
+                    </svg>
+                `
+            }
+        };
+
+        let activeSeasonKey = 'spring';
+        let isPinyinVisible = true;
+        let speechRate = 1.0;
+        let seasonCustomImgs = {};
+
+        // 音频播放核心控制
+        let customAudio = new Audio();
+        let customAudioUrl = null;
+        let isAudioLoaded = false;
+        let isFullPoemPlaying = false;
+        let playbackEndTimeout = null;
+        let animFrameId = null;
+
+        // 切换季节
+        function switchSeason(seasonKey) {
+            activeSeasonKey = seasonKey;
+            const data = seasonalData[seasonKey];
+            if (!data) return;
+
+            // 更新选项卡样式
+            ['spring', 'summer', 'autumn', 'winter'].forEach(key => {
+                const tab = document.getElementById(`tab-${key}`);
+                if (!tab) return;
+                tab.className = "season-tab p-2.5 sm:p-3 rounded-2xl border-2 transition-all flex items-center justify-center gap-1.5 shadow-xs bg-white border-slate-200 text-slate-700 font-bold hover:border-amber-300";
+            });
+
+            const activeTab = document.getElementById(`tab-${seasonKey}`);
+            if (activeTab) {
+                const colorMap = {
+                    spring: 'bg-emerald-50 border-emerald-400 text-emerald-950 ring-2 ring-emerald-300',
+                    summer: 'bg-sky-50 border-sky-400 text-sky-950 ring-2 ring-sky-300',
+                    autumn: 'bg-amber-50 border-amber-400 text-amber-950 ring-2 ring-amber-300',
+                    winter: 'bg-indigo-50 border-indigo-400 text-indigo-950 ring-2 ring-indigo-300'
+                };
+                activeTab.className = `season-tab active p-2.5 sm:p-3 rounded-2xl border-2 transition-all flex items-center justify-center gap-1.5 shadow-xs font-bold ${colorMap[seasonKey]}`;
+            }
+
+            // 更新课本顶标
+            const tagEl = document.getElementById('lessonSubTag');
+            if (tagEl) tagEl.textContent = `【${data.subTitle}】`;
+
+            // 渲染底层画卷 & 诗文排版
+            renderTextbookLayout(data);
+
+            // 渲染生字词卡片与微课堂
+            renderVocabAndTrivia(data);
+
+            // 更新背景粒子动效
+            if (window.particleEngine) {
+                window.particleEngine.setSeason(seasonKey);
+            }
+        }
+
+        // 渲染字画一体的课本版式（支持词级卡拉OK点读与高亮）
+        function renderTextbookLayout(data) {
+            const bgContainer = document.getElementById('textbookBgArtwork');
+            const poemContainer = document.getElementById('textbookPoemStage');
+
+            // 1. 底层自然画卷
+            if (seasonCustomImgs[data.id]) {
+                bgContainer.innerHTML = `
+                    <img src="${seasonCustomImgs[data.id]}" class="w-full h-full object-cover object-bottom" alt="${data.name}插画" />
+                `;
+            } else {
+                bgContainer.innerHTML = data.bgSvg;
+            }
+
+            // 2. 表层规范大字诗句排版（严格绑定时间戳区间）
+            poemContainer.innerHTML = data.lines.map((line, lineIdx) => {
+                let unitsHtml = '';
+                let lineStart = 999;
+                let lineEnd = 0;
+
+                line.units.forEach(unit => {
+                    if (unit.punct) {
+                        unitsHtml += `
+                            <div class="flex flex-col items-center justify-end px-0.5 sm:px-1">
+                                <span class="char-py font-pinyin text-transparent text-xs select-none pointer-events-none mb-1.5">·</span>
+                                <span class="font-textbook text-2xl sm:text-4xl text-slate-800 leading-none">${unit.punct}</span>
+                            </div>
+                        `;
+                    } else {
+                        const ts = rawTimestamps[unit.tsIdx];
+                        if (ts) {
+                            if (ts.start < lineStart) lineStart = ts.start;
+                            if (ts.end > lineEnd) lineEnd = ts.end;
+                        }
+
+                        let charsHtml = '';
+                        for (let i = 0; i < unit.text.length; i++) {
+                            const c = unit.text[i];
+                            const py = unit.py[i] || '';
+                            charsHtml += `
+                                <div class="pinyin-char-box flex flex-col items-center justify-center px-1 sm:px-1.5 py-0.5">
+                                    <span class="char-py font-pinyin text-amber-700 text-xs sm:text-sm font-bold tracking-normal leading-none mb-1.5 select-none transition-colors">${py}</span>
+                                    <span class="char-cn font-textbook text-3xl sm:text-4xl sm:text-[42px] font-medium text-slate-900 leading-none select-none transition-colors">${c}</span>
+                                </div>
+                            `;
+                        }
+
+                        unitsHtml += `
+                            <div id="word-unit-${unit.tsIdx}" 
+                                 onclick="event.stopPropagation(); playWordTimestamp(${unit.tsIdx}, '${unit.text}')" 
+                                 class="karaoke-word" 
+                                 title="点击点读：${unit.text}">
+                                ${charsHtml}
+                            </div>
+                        `;
+                    }
+                });
+
+                return `
+                    <div id="poem-line-${lineIdx}" 
+                         onclick="playLineTimestamp(${lineStart}, ${lineEnd}, ${lineIdx})" 
+                         class="flex items-center justify-center flex-wrap cursor-pointer px-3 py-1.5 transition-all duration-200 hover:sentence-active group">
+                        <div class="flex items-end flex-wrap justify-center">
+                            ${unitsHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 渲染字词卡片与微课堂（点击生字卡片也可直接触发 MP3 精确发声）
+        function renderVocabAndTrivia(data) {
+            const vocabCards = document.getElementById('seasonVocabCards');
+            const triviaBox = document.getElementById('seasonKnowledgeContent');
+            document.getElementById('vocabTitle').textContent = `${data.name}重点生字词宝盒`;
+            document.getElementById('vocabBadgeIcon').textContent = data.badge;
+
+            vocabCards.innerHTML = data.vocabList.map(item => {
+                let clickAction = '';
+                if (typeof item.tsIdx === 'number') {
+                    clickAction = `playWordTimestamp(${item.tsIdx}, '${item.word}')`;
+                } else if (typeof item.start === 'number' && typeof item.end === 'number') {
+                    clickAction = `playAudioSlice(${item.start}, ${item.end}, '${item.word}')`;
+                } else {
+                    clickAction = `fallbackSpeak('${item.word}。${item.exp}')`;
+                }
+
+                return `
+                    <div onclick="${clickAction}" class="bg-amber-50/60 hover:bg-amber-100/90 border border-amber-200/80 rounded-xl p-2.5 transition cursor-pointer flex flex-col justify-between hover:shadow-xs hover:border-amber-400 group">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-base group-hover:scale-110 transition">${item.icon}</span>
+                                <i class="fa-solid fa-volume-low text-xs text-amber-600 group-hover:text-amber-800"></i>
+                            </div>
+                            <div class="font-pinyin text-[11px] text-amber-800 font-bold mt-0.5">${item.pinyin}</div>
+                            <h4 class="font-textbook text-lg font-bold text-slate-900">${item.word}</h4>
+                        </div>
+                        <p class="text-[11px] text-slate-600 mt-1 line-clamp-2">${item.exp}</p>
+                    </div>
+                `;
+            }).join('');
+
+            triviaBox.innerHTML = data.trivia.map(t => `
+                <div class="bg-white/80 p-2 rounded-xl flex items-start gap-2 shadow-2xs">
+                    <span class="text-sm">${t.icon}</span>
+                    <div>
+                        <span class="font-bold text-amber-950">${t.title}：</span>
+                        <span>${t.text}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 播放单个词对应的时间戳音频
+        function playWordTimestamp(tsIdx, wordText) {
+            const ts = rawTimestamps[tsIdx];
+            if (!ts) return;
+
+            if (isAudioLoaded) {
+                playAudioSlice(ts.start, ts.end, wordText);
+            } else {
+                fallbackSpeak(wordText);
+            }
+        }
+
+        // 播放一整行诗对应的时间戳音频
+        function playLineTimestamp(start, end, lineIdx) {
+            if (isAudioLoaded && start < end) {
+                playAudioSlice(start, end);
+            } else {
+                const data = seasonalData[activeSeasonKey];
+                if (data && data.lines[lineIdx]) {
+                    const text = data.lines[lineIdx].units.map(u => u.text || u.punct).join('');
+                    fallbackSpeak(text);
+                }
+            }
+        }
+
+        // 精准时间切片播放器（播放指定时间段并在终点自动停止）
+        function playAudioSlice(start, end, highlightText) {
+            if (!isAudioLoaded) return;
+
+            clearActiveHighlights();
+            if (playbackEndTimeout) clearTimeout(playbackEndTimeout);
+
+            customAudio.pause();
+            customAudio.currentTime = Math.max(0, start - 0.02); // 微量提前 20ms 避免削头
+            customAudio.play();
+
+            startKaraokeTracker();
+
+            const duration = (end - start + 0.05) * 1000;
+            playbackEndTimeout = setTimeout(() => {
+                customAudio.pause();
+                stopKaraokeTracker();
+                clearActiveHighlights();
+            }, duration);
+        }
+
+        // 朗读当前季节整页（从当前季起始秒播至当前季结束秒）
+        function readActiveSeason() {
+            const range = seasonRanges[activeSeasonKey];
+            if (!range) return;
+
+            if (isAudioLoaded) {
+                clearActiveHighlights();
+                if (playbackEndTimeout) clearTimeout(playbackEndTimeout);
+
+                customAudio.pause();
+                customAudio.currentTime = range.start;
+                customAudio.play();
+                startKaraokeTracker();
+
+                const duration = (range.end - range.start) * 1000;
+                playbackEndTimeout = setTimeout(() => {
+                    customAudio.pause();
+                    stopKaraokeTracker();
+                    clearActiveHighlights();
+                }, duration);
+            } else {
+                // 默认浏览器 TTS 朗读
+                readActiveSeasonFallback();
+            }
+        }
+
+        // 四季连读 (0.07s 到 30.27s 全程连贯播放，自动跨季节切页)
+        function togglePlayFullPoem() {
+            if (isFullPoemPlaying) {
+                stopFullPoemPlayback();
+            } else {
+                startFullPoemPlayback();
+            }
+        }
+
+        function startFullPoemPlayback() {
+            if (!isAudioLoaded) {
+                showMessage("💡 请先在上方导入儿歌 MP3 音频，体验真正的原声卡拉OK连读！");
+                return;
+            }
+
+            isFullPoemPlaying = true;
+            document.getElementById('fullPlayText').textContent = '暂停连读';
+            document.getElementById('fullPlayIcon').className = 'fa-solid fa-pause';
+
+            if (playbackEndTimeout) clearTimeout(playbackEndTimeout);
+            customAudio.pause();
+            customAudio.currentTime = 0.07;
+            customAudio.play();
+
+            startKaraokeTracker(true);
+        }
+
+        function stopFullPoemPlayback() {
+            isFullPoemPlaying = false;
+            document.getElementById('fullPlayText').textContent = '四季连读';
+            document.getElementById('fullPlayIcon').className = 'fa-solid fa-play';
+
+            if (playbackEndTimeout) clearTimeout(playbackEndTimeout);
+            customAudio.pause();
+            stopKaraokeTracker();
+            clearActiveHighlights();
+        }
+
+        // 核心高精度卡拉OK时间追踪器（使用 requestAnimationFrame 实现 60fps 追踪）
+        function startKaraokeTracker(autoSwitchSeason = false) {
+            stopKaraokeTracker();
+
+            function trackLoop() {
+                const t = customAudio.currentTime;
+
+                // 1. 若开启四季连读，自动根据当前秒数切换季节标签
+                if (autoSwitchSeason || isFullPoemPlaying) {
+                    if (t >= seasonRanges.winter.start && activeSeasonKey !== 'winter') {
+                        switchSeason('winter');
+                    } else if (t >= seasonRanges.autumn.start && t < seasonRanges.winter.start && activeSeasonKey !== 'autumn') {
+                        switchSeason('autumn');
+                    } else if (t >= seasonRanges.summer.start && t < seasonRanges.autumn.start && activeSeasonKey !== 'summer') {
+                        switchSeason('summer');
+                    } else if (t < seasonRanges.summer.start && activeSeasonKey !== 'spring') {
+                        switchSeason('spring');
+                    }
+
+                    // 连读播完全文 (30.27s)
+                    if (t >= 30.35 || customAudio.ended) {
+                        stopFullPoemPlayback();
+                        showMessage("🎉 太棒啦！《田家四季歌》连读圆满完成！");
+                        return;
+                    }
+                }
+
+                // 2. 匹配当前秒数落在哪个词元时间戳内
+                let activeIdx = -1;
+                for (let i = 0; i < rawTimestamps.length; i++) {
+                    const ts = rawTimestamps[i];
+                    if (t >= ts.start && t <= ts.end) {
+                        activeIdx = i;
+                        break;
+                    }
+                }
+
+                // 3. 高亮或取消高亮对应的汉字词元
+                document.querySelectorAll('.karaoke-word').forEach(el => {
+                    el.classList.remove('karaoke-active');
+                });
+
+                if (activeIdx !== -1) {
+                    const activeEl = document.getElementById(`word-unit-${activeIdx}`);
+                    if (activeEl) {
+                        activeEl.classList.add('karaoke-active');
+                    }
+                }
+
+                if (!customAudio.paused && !customAudio.ended) {
+                    animFrameId = requestAnimationFrame(trackLoop);
+                } else {
+                    stopKaraokeTracker();
+                    clearActiveHighlights();
+                }
+            }
+
+            animFrameId = requestAnimationFrame(trackLoop);
+        }
+
+        function stopKaraokeTracker() {
+            if (animFrameId) {
+                cancelAnimationFrame(animFrameId);
+                animFrameId = null;
+            }
+        }
+
+        function clearActiveHighlights() {
+            document.querySelectorAll('.karaoke-word').forEach(el => el.classList.remove('karaoke-active'));
+        }
+
+        // 默认语音合成兜底
+        function fallbackSpeak(text, onEnd) {
+            if (!('speechSynthesis' in window)) {
+                if (onEnd) onEnd();
+                return;
+            }
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'zh-CN';
+            utter.rate = speechRate;
+            utter.pitch = 1.05;
+            utter.onend = () => { if (onEnd) onEnd(); };
+            utter.onerror = () => { if (onEnd) onEnd(); };
+            window.speechSynthesis.speak(utter);
+        }
+
+        function readActiveSeasonFallback() {
+            const data = seasonalData[activeSeasonKey];
+            let index = 0;
+            function next() {
+                if (index >= data.lines.length) {
+                    document.querySelectorAll('#textbookPoemStage > div').forEach(el => el.classList.remove('sentence-active'));
+                    return;
+                }
+                document.querySelectorAll('#textbookPoemStage > div').forEach(el => el.classList.remove('sentence-active'));
+                const target = document.getElementById(`poem-line-${index}`);
+                if (target) target.classList.add('sentence-active');
+
+                const text = data.lines[index].units.map(u => u.text || u.punct).join('');
+                fallbackSpeak(text, () => {
+                    index++;
+                    setTimeout(next, 350);
+                });
+            }
+            next();
+        }
+
+        // 处理用户上传 MP3 音频
+        async function handleAudioUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            try {
+                await applyCustomAudioBlob(file, true);
+                showMessage("🎉 音频绑定成功！时间戳已精准映射，快点击诗句试听吧！");
+            } catch (err) {
+                showMessage("音频导入失败，请重试！");
+            }
+        }
+
+        async function applyCustomAudioBlob(blob, saveToDb = false) {
+            if (customAudioUrl) {
+                URL.revokeObjectURL(customAudioUrl);
+            }
+            customAudioUrl = URL.createObjectURL(blob);
+            customAudio.src = customAudioUrl;
+            customAudio.preload = 'auto';
+            isAudioLoaded = true;
+
+            document.getElementById('audioStatusText').innerHTML = `
+                <span class="text-emerald-800 font-bold">✨ 已激活您的儿歌 MP3：时间戳精准对齐就绪！</span>
+            `;
+            document.getElementById('clearAudioBtn').classList.remove('hidden');
+
+            if (saveToDb) {
+                try {
+                    const db = await openAudioDB();
+                    const tx = db.transaction('userAudioStore', 'readwrite');
+                    tx.objectStore('userAudioStore').put(blob, 'savedSongAudio');
+                } catch (e) {
+                    console.warn('Could not save audio to IndexedDB:', e);
+                }
+            }
+        }
+
+        async function clearCustomAudio() {
+            if (customAudioUrl) {
+                URL.revokeObjectURL(customAudioUrl);
+                customAudioUrl = null;
+            }
+            customAudio.src = '';
+            isAudioLoaded = false;
+            document.getElementById('audioStatusText').textContent = '时间戳已就绪（共 61 个高精词段，30.27 秒）。点击右侧一键导入您的 MP3 开始测试！';
+            document.getElementById('clearAudioBtn').classList.add('hidden');
+
+            try {
+                const db = await openAudioDB();
+                const tx = db.transaction('userAudioStore', 'readwrite');
+                tx.objectStore('userAudioStore').delete('savedSongAudio');
+                showMessage("已恢复为默认状态");
+            } catch (e) {}
+        }
+
+        function openAudioDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open('TianJiaSongAudioDB', 2);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('userAudioStore')) {
+                        db.createObjectStore('userAudioStore');
+                    }
+                };
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function initStoredAudio() {
+            try {
+                const db = await openAudioDB();
+                const tx = db.transaction('userAudioStore', 'readonly');
+                const store = tx.objectStore('userAudioStore');
+                const req = store.get('savedSongAudio');
+                req.onsuccess = () => {
+                    if (req.result) {
+                        applyCustomAudioBlob(req.result, false);
+                    }
+                };
+            } catch (err) {
+                console.log('IndexedDB audio skipped:', err);
+            }
+        }
+
+        // 自定义更换本季插图
+        function handleCustomBgUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const base64Data = e.target.result;
+                seasonCustomImgs[activeSeasonKey] = base64Data;
+                saveBgToIndexedDB(activeSeasonKey, base64Data);
+                renderTextbookLayout(seasonalData[activeSeasonKey]);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function openBgDB() {
+            return new Promise((resolve) => {
+                const req = indexedDB.open('TianJiaBgDB', 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('seasonImages')) {
+                        db.createObjectStore('seasonImages');
+                    }
+                };
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = () => resolve(null);
+            });
+        }
+
+        async function saveBgToIndexedDB(seasonKey, base64Data) {
+            const db = await openBgDB();
+            if (!db) return;
+            const tx = db.transaction('seasonImages', 'readwrite');
+            tx.objectStore('seasonImages').put(base64Data, seasonKey);
+        }
+
+        async function loadStoredBgImages() {
+            const db = await openBgDB();
+            if (!db) return;
+            const tx = db.transaction('seasonImages', 'readonly');
+            const store = tx.objectStore('seasonImages');
+            ['spring', 'summer', 'autumn', 'winter'].forEach(key => {
+                const req = store.get(key);
+                req.onsuccess = () => {
+                    if (req.result) {
+                        seasonCustomImgs[key] = req.result;
+                        if (key === activeSeasonKey) {
+                            renderTextbookLayout(seasonalData[activeSeasonKey]);
+                        }
+                    }
+                };
+            });
+        }
+
+        // 拼音开关与语速控制
+        function togglePinyin() {
+            isPinyinVisible = !isPinyinVisible;
+            document.body.classList.toggle('pinyin-hidden', !isPinyinVisible);
+            document.getElementById('pinyinBtnText').textContent = isPinyinVisible ? '拼音：开启' : '拼音：隐藏';
+        }
+
+        function setSpeed(rate) {
+            speechRate = rate;
+            customAudio.playbackRate = rate;
+            document.getElementById('speedSlow').className = rate === 0.8 
+                ? "px-1.5 py-0.5 rounded bg-amber-500 text-white shadow-xs font-bold"
+                : "px-1.5 py-0.5 rounded text-amber-700 hover:bg-amber-200";
+            document.getElementById('speedNormal').className = rate === 1.0 
+                ? "px-1.5 py-0.5 rounded bg-amber-500 text-white shadow-xs font-bold"
+                : "px-1.5 py-0.5 rounded text-amber-700 hover:bg-amber-200";
+        }
+
+        function showMessage(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 text-white px-5 py-2.5 rounded-full shadow-2xl text-xs font-medium backdrop-blur-sm border border-amber-400 transition duration-300';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 2600);
+        }
+
+        // 季节背景粒子动效
+        class SeasonParticleEngine {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.particles = [];
+                this.season = 'spring';
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.init();
+                this.animate();
+            }
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+            setSeason(s) {
+                this.season = s;
+                this.particles = [];
+                this.init();
+            }
+            init() {
+                for (let i = 0; i < 20; i++) {
+                    this.particles.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        size: Math.random() * 4 + 2,
+                        vx: (Math.random() - 0.5) * 0.8,
+                        vy: Math.random() * 1.2 + 0.4,
+                        opacity: Math.random() * 0.4 + 0.2
+                    });
+                }
+            }
+            animate() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                const colors = {
+                    spring: 'rgba(244, 114, 182,',
+                    summer: 'rgba(56, 189, 248,',
+                    autumn: 'rgba(245, 158, 11,',
+                    winter: 'rgba(186, 230, 253,'
+                };
+                const colorPrefix = colors[this.season] || colors.spring;
+
+                this.particles.forEach(p => {
+                    p.y += p.vy;
+                    p.x += p.vx;
+                    if (p.y > this.canvas.height) { p.y = -10; p.x = Math.random() * this.canvas.width; }
+                    this.ctx.fillStyle = `${colorPrefix} ${p.opacity})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                });
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('fxCanvas');
+            window.particleEngine = new SeasonParticleEngine(canvas);
+            switchSeason('spring');
+            initStoredAudio();
+            loadStoredBgImages();
+        });
+    </script>
+</body>
+</html>
